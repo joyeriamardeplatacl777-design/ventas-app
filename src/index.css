@@ -3,5 +3,13 @@
 @tailwind utilities;
 
 @layer base {
-  body { @apply bg-gray-50; }
+  body { @apply bg-[#111111] text-white font-serif; }
+  h1, h2, h3 { @apply text-[#d4af37]; }
+}
+
+@layer components {
+  .card { @apply bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md; }
+  .btn-gold { @apply bg-[#d4af37] hover:bg-[#b8962e] text-[#111111] rounded-2xl shadow-md font-medium; }
+  .badge-success { @apply bg-[#6abf69]/10 text-[#6abf69] border border-[#6abf69]/40 rounded-2xl; }
+  .badge-error { @apply bg-[#b94a48]/10 text-[#b94a48] border border-[#b94a48]/40 rounded-2xl; }
 }

@@ -4,6 +4,17 @@ import { Client,ClientForm, Sale, ExpenseForm, ClientType, LoginForm, Expense, S
 import { useLocalStorage } from './hooks/useLocalStorage';
 import html2canvas from 'html2canvas';
 
+// Formato fecha chileno dd/mm/yyyy hh:mm
+const formatCLDateTime = (date: Date) => {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const dd = pad(date.getDate());
+  const mm = pad(date.getMonth() + 1);
+  const yyyy = date.getFullYear();
+  const hh = pad(date.getHours());
+  const min = pad(date.getMinutes());
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+};
+
 
 // Función para formatear pesos chilenos
 const formatCLP = (amount: number) => {
@@ -26,6 +37,7 @@ const SalesManagementSystem = () => {
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [lastBackup, setLastBackup] = useState<Date | null>(null);
   const [showBackupSuccess, setShowBackupSuccess] = useState(false);
+  const [needsDailyBackup, setNeedsDailyBackup] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState('');
   const [clientSearchTerm, setClientSearchTerm] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
@@ -88,6 +100,25 @@ const SalesManagementSystem = () => {
     if (savedAuth === 'true') {
       setIsAuthenticated(true);
     }
+  }, []);
+
+  // Recordatorio de respaldo cada 24 horas (verifica cada hora)
+  useEffect(() => {
+    const checkDailyBackup = () => {
+      const lastBackupStr = localStorage.getItem('sales_system_last_backup');
+      if (!lastBackupStr) {
+        // Si no existe respaldo previo, no mostrar recordatorio intrusivo
+        setNeedsDailyBackup(false);
+        return;
+      }
+      const last = new Date(lastBackupStr);
+      const diffHours = (Date.now() - last.getTime()) / (1000 * 60 * 60);
+      setNeedsDailyBackup(diffHours >= 24);
+    };
+
+    checkDailyBackup();
+    const id = window.setInterval(checkDailyBackup, 60 * 60 * 1000); // cada hora
+    return () => window.clearInterval(id);
   }, []);
 
   // Cargar fecha del último respaldo
@@ -604,6 +635,7 @@ const cancelEditSale = () => {
     const now = new Date().toISOString();
     localStorage.setItem('sales_system_last_backup', now);
     setLastBackup(new Date(now));
+    setNeedsDailyBackup(false);
     
     setShowBackupSuccess(true);
     setTimeout(() => setShowBackupSuccess(false), 3000);
@@ -796,6 +828,7 @@ const cancelEditSale = () => {
 
   const { sales: salesSummary, expenses: expensesSummary, salesCount, expensesCount, netProfit } = getTransactionsSummary(reportPeriod);
   const needsBackup = checkAutoBackup();
+  const showWeeklyBackupAlert = needsBackup && !needsDailyBackup;
 
   const isExpenseFormDisabled = (): boolean => {
     return (
@@ -807,25 +840,25 @@ const cancelEditSale = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
+    <div className="max-w-6xl mx-auto p-6 min-h-screen text-white">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-center mb-4 text-gray-800">
+        <h1 className="text-3xl font-bold text-center mb-4 text-[#d4af37]">
           Sistema de Registro de Ventas y Egresos
         </h1>
         
         {/* Indicadores de estado */}
         <div className="flex justify-center gap-4 mb-4 flex-wrap">
-          <div className="bg-green-100 border border-green-300 rounded-lg px-3 py-2 flex items-center">
-            <Save className="mr-2 text-green-600" size={16} />
+          <div className="bg-[#6abf69]/10 border border-[#6abf69]/40 rounded-2xl px-3 py-2 flex items-center">
+            <Save className="mr-2 text-[#6abf69]" size={16} />
             <span className="text-green-700 text-sm">Guardado automático</span>
           </div>
           
-          <div className={`border rounded-lg px-3 py-2 flex items-center ${
-            needsBackup ? 'bg-yellow-100 border-yellow-300' : 'bg-blue-100 border-blue-300'
+          <div className={`bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md border px-3 py-2 flex items-center ${
+            needsBackup ? 'border-[#d4af37]/60' : 'border-[#d4af37]/30'
           }`}>
-            <Shield className={`mr-2 ${needsBackup ? 'text-yellow-600' : 'text-blue-600'}`} size={16} />
-            <span className={`text-sm ${needsBackup ? 'text-yellow-700' : 'text-blue-700'}`}>
+            <Shield className={`mr-2 text-[#d4af37]`} size={16} />
+            <span className={`text-sm`}>
               {lastBackup 
                 ? `Último respaldo: ${lastBackup.toLocaleDateString('es-ES')}`
                 : 'Sin respaldos'
@@ -833,9 +866,9 @@ const cancelEditSale = () => {
             </span>
           </div>
           
-          <div className="bg-purple-100 border border-purple-300 rounded-lg px-3 py-2 flex items-center">
-            <Database className="mr-2 text-purple-600" size={16} />
-            <span className="text-purple-700 text-sm">
+          <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md border border-[#d4af37]/20 px-3 py-2 flex items-center">
+            <Database className="mr-2 text-[#d4af37]" size={16} />
+            <span className="text-sm">
               {clients.length} clientes • {sales.length} ventas • {expenses.length} egresos
             </span>
           </div>
@@ -843,7 +876,7 @@ const cancelEditSale = () => {
 
         {/* Mensaje de éxito */}
         {showSuccessMessage && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 text-center animate-pulse">
+          <div className="bg-[#6abf69]/10 border border-[#6abf69]/40 text-[#6abf69] px-4 py-3 rounded-2xl mb-4 text-center animate-pulse">
             <div className="flex items-center justify-center">
               <span className="text-lg">{showSuccessMessage}</span>
             </div>
@@ -852,21 +885,39 @@ const cancelEditSale = () => {
 
         {/* Mensaje de respaldo */}
         {showBackupSuccess && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 text-center">
-            ¡Respaldo creado exitosamente!
+          <div className="bg-[#6abf69]/10 border border-[#6abf69]/40 text-[#6abf69] px-4 py-3 rounded-2xl mb-4 text-center">
+            Respaldo creado exitosamente
           </div>
         )}
 
-        {/* Alerta de respaldo */}
-        {needsBackup && (
-          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4 flex items-center justify-between">
+        {/* Recordatorio 24h */}
+        {needsDailyBackup && (
+          <div className="bg-[#f9f7f3] text-[#111111] border border-[#d4af37]/50 px-4 py-3 rounded-2xl mb-4 flex items-center justify-between shadow-md">
+            <div className="flex items-center flex-wrap gap-2">
+              <span>🔔 Han pasado más de 24 horas desde el último respaldo. Se recomienda crear uno ahora.</span>
+              {lastBackup && (
+                <span className="text-xs text-yellow-700">Último: {formatCLDateTime(lastBackup)}</span>
+              )}
+            </div>
+            <button
+              onClick={createFullBackup}
+              className="bg-[#d4af37] hover:bg-[#b8962e] text-[#111111] px-3 py-1 rounded-2xl text-sm shadow-md"
+            >
+              Crear respaldo
+            </button>
+          </div>
+        )}
+
+        {/* Alerta semanal (si no muestra la diaria) */}
+        {showWeeklyBackupAlert && (
+          <div className="bg-[#f9f7f3] text-[#111111] border border-[#d4af37]/40 px-4 py-3 rounded-2xl mb-4 flex items-center justify-between shadow-md">
             <div className="flex items-center">
               <AlertCircle className="mr-2" size={20} />
               <span>Se recomienda crear un respaldo</span>
             </div>
             <button
               onClick={createFullBackup}
-              className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm"
+              className="bg-[#d4af37] hover:bg-[#b8962e] text-[#111111] px-3 py-1 rounded-2xl text-sm shadow-md"
             >
               Crear Respaldo
             </button>
@@ -876,15 +927,15 @@ const cancelEditSale = () => {
 
       {/* Navegación */}
       <div className="flex justify-center mb-6">
-        <div className="bg-white rounded-lg p-1 shadow-md">
+        <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl p-1 shadow-md">
           {['clients', 'sales', 'expenses', 'report', 'backup'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-2 rounded-md font-medium transition-colors ${
+              className={`px-6 py-2 rounded-2xl font-medium transition-colors ${
                 activeTab === tab
-                  ? 'bg-blue-500 text-white'
-                  : 'text-gray-600 hover:text-gray-800'
+                  ? 'bg-[#d4af37] text-[#111111]'
+                  : 'text-[#111111]/70 hover:text-[#111111]'
               }`}
             >
               {tab === 'clients' && 'Clientes'}
@@ -901,7 +952,7 @@ const cancelEditSale = () => {
       {activeTab === 'backup' && (
         <div className="space-y-6">
           {!isAuthenticated ? (
-            <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
+            <div className="max-w-md mx-auto bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-6">
               <h2 className="text-xl font-bold text-center mb-6">Acceso a Respaldos</h2>
               
               <div className="space-y-4">
@@ -941,14 +992,14 @@ const cancelEditSale = () => {
                       setLoginError('Usuario o contraseña incorrectos');
                     }
                   }}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-md font-medium"
+                  className="w-full bg-[#d4af37] hover:bg-[#b8962e] text-[#111111] py-3 rounded-2xl font-medium shadow-md"
                 >
                   Iniciar Sesión
                 </button>
                 
                 <button
                   onClick={() => setActiveTab('clients')}
-                  className="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-md"
+                  className="w-full bg-white/10 hover:bg-white/20 text-white py-2 rounded-2xl"
                 >
                   Cancelar
                 </button>
@@ -964,7 +1015,7 @@ const cancelEditSale = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold flex items-center">
                   <Shield className="mr-2" size={24} />
@@ -978,32 +1029,32 @@ const cancelEditSale = () => {
                     setLoginError('');
                     sessionStorage.removeItem('backup_auth');
                   }}
-                  className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md"
+                  className="bg-[#b94a48] hover:bg-[#9f3e3c] text-white py-2 px-4 rounded-2xl shadow-md"
                 >
                   Cerrar Sesión
                 </button>
               </div>
               
               <div className="grid md:grid-cols-2 gap-6">
-                <div className="border rounded-lg p-4">
+                <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-4">
                   <h3 className="text-lg font-semibold mb-3">Crear Respaldo</h3>
-                  <p className="text-gray-600 mb-4">Descarga todos tus datos</p>
+                  <p className="text-[#333] mb-4">Descarga todos tus datos</p>
                   <button
                     onClick={createFullBackup}
-                    className="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-md font-medium"
+                    className="w-full bg-[#d4af37] hover:bg-[#b8962e] text-[#111111] py-3 px-4 rounded-2xl font-medium shadow-md"
                   >
                     Descargar Respaldo
                   </button>
-                  <div className="mt-3 text-sm text-gray-500">
+                  <div className="mt-3 text-sm text-[#555]">
                     <p>{clients.length} clientes</p>
                     <p>{sales.length} ventas</p>
                     <p>{expenses.length} egresos</p>
                   </div>
                 </div>
 
-                <div className="border rounded-lg p-4">
+                <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-4">
                   <h3 className="text-lg font-semibold mb-3">Restaurar</h3>
-                  <p className="text-gray-600 mb-4">Sube un archivo de respaldo</p>
+                  <p className="text-[#333] mb-4">Sube un archivo de respaldo</p>
                   <input
                     type="file"
                     accept=".json"
@@ -1013,12 +1064,12 @@ const cancelEditSale = () => {
                   />
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-md font-medium"
+                    className="w-full bg-[#d4af37] hover:bg-[#b8962e] text-[#111111] py-3 px-4 rounded-2xl font-medium shadow-md"
                   >
                     Seleccionar Archivo
                   </button>
                   
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded">
+                  <div className="mt-4 p-3 bg-[#b94a48]/10 border border-[#b94a48]/40 rounded-2xl">
                     <h4 className="font-semibold text-red-800 mb-2">⚠️ Zona de Peligro</h4>
                     <button
                       onClick={clearAllData}
@@ -1037,9 +1088,9 @@ const cancelEditSale = () => {
       {/* Sección de Egresos */}
       {activeTab === 'expenses' && (
         <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold mb-4 flex items-center">
-        <DollarSign className="mr-2 text-red-500" size={20} />
+        <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center">
+        <DollarSign className="mr-2 text-[#d4af37]" size={20} />
         {editingExpense ? 'Modificar Egreso' : 'Registrar Egreso'}
           </h2>
           <div className="space-y-4">
@@ -1163,7 +1214,7 @@ const cancelEditSale = () => {
             <button
               type="button"
               onClick={cancelEditExpense}
-              className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md font-medium transition-colors"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-medium transition-colors"
             >
               Cancelar
             </button>
@@ -1172,7 +1223,7 @@ const cancelEditSale = () => {
       </div>
     </div>
 
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-6">
       <h2 className="text-xl font-semibold mb-4">Egresos del Día</h2>
       <div className="max-h-96 overflow-y-auto">
         {expenses.filter(expense => new Date(expense.date).toDateString() === new Date().toDateString()).length === 0 ? (
@@ -1252,7 +1303,7 @@ const cancelEditSale = () => {
       {/* Sección de Clientes */}
       {activeTab === 'clients' && (
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center">
               <User className="mr-2" size={20} />
               {editingClient ? 'Modificar Cliente' : 'Registrar Cliente'}
@@ -1310,7 +1361,7 @@ const cancelEditSale = () => {
                 <button
                   type="button"
                   onClick={addClient}
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md font-medium transition-colors flex items-center justify-center"
+                  className="flex-1 bg-[#d4af37] hover:bg-[#b8962e] text-[#111111] py-2 px-4 rounded-2xl font-medium transition-colors flex items-center justify-center shadow-md"
                 >
                   <Plus className="mr-2" size={16} />
                   {editingClient ? 'Actualizar' : 'Agregar'}
@@ -1328,7 +1379,7 @@ const cancelEditSale = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-6">
             <h2 className="text-xl font-semibold mb-4">Lista de Clientes</h2>
             <div className="max-h-96 overflow-y-auto">
               {clients.length === 0 ? (
@@ -1393,7 +1444,7 @@ const cancelEditSale = () => {
       {/* Sección de Ventas */}
       {activeTab === 'sales' && (
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center">
               <DollarSign className="mr-2" size={20} />
               {editingSale ? 'Modificar Venta' : 'Registrar Venta'}
@@ -1574,7 +1625,7 @@ const cancelEditSale = () => {
                 <button
                   type="button"
                   onClick={addSale}
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md font-medium transition-colors flex items-center justify-center"
+                  className="flex-1 bg-[#d4af37] hover:bg-[#b8962e] text-[#111111] py-2 px-4 rounded-2xl font-medium transition-colors flex items-center justify-center shadow-md"
                   disabled={clients.length === 0 || !saleForm.clientId || !saleForm.amount.replace(/\D/g, '')}
                 >
                   <Plus className="mr-2" size={16} />
@@ -1593,45 +1644,45 @@ const cancelEditSale = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-6">
             <h2 className="text-xl font-semibold mb-4">Ventas del Día</h2>
             <div className="max-h-96 overflow-y-auto">
               {sales.filter(sale => new Date(sale.date).toDateString() === new Date().toDateString()).length === 0 ? (
                 <p className="text-gray-500 text-center py-4">No hay ventas hoy</p>
               ) : (
-                <div className="space-y-3">
-                  {sales
+          <div className="space-y-3">
+            {sales
                     .filter(sale => new Date(sale.date).toDateString() === new Date().toDateString())
                     .map(sale => (
-                    <div key={sale.id} className="border border-gray-200 rounded-lg p-3">
+                    <div key={sale.id} className="bg-white/60 border border-[#d4af37]/20 rounded-2xl p-3">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
                               <h3 className="font-medium">{sale.clientName}</h3>
-                              <div className="text-sm text-gray-600">
+                              <div className="text-sm text-[#333]">
                                 <span className="capitalize">{sale.category}</span> • 
                                 <span className="capitalize ml-1">{sale.paymentMethod}</span>
                               </div>
                               {sale.description && (
-                                <p className="text-sm text-gray-500 mt-1">{sale.description}</p>
+                                <p className="text-sm text-[#555] mt-1">{sale.description}</p>
                               )}
                             </div>
                             <div className="text-right ml-4">
-                              <p className="font-semibold text-green-600">
+                              <p className="font-semibold text-[#6abf69]">
                                 {formatCLP(sale.amount)}
                               </p>
                               <div className="flex gap-1 mt-1 justify-end">
                                 <button
                                   onClick={() => editSale(sale)}
-                                  className="text-blue-500 hover:text-blue-700 p-1 rounded hover:bg-blue-50"
+                                  className="text-[#d4af37] hover:text-[#b8962e] p-1 rounded-2xl hover:bg-[#d4af37]/10"
                                   title="Editar venta"
                                 >
                                   <Edit2 size={14} />
                                 </button>
                                 <button
                                   onClick={() => deleteSale(sale.id)}
-                                  className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
+                                  className="text-[#b94a48] hover:text-[#9f3e3c] p-1 rounded-2xl hover:bg-[#b94a48]/10"
                                   title="Eliminar venta"
                                 >
                                   <Trash2 size={14} />
@@ -1652,7 +1703,7 @@ const cancelEditSale = () => {
 
       {/* Resumen Financiero */}
       {activeTab === 'report' && (
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-6">
                       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <h2 className="text-2xl font-semibold flex items-center">
               <Calendar className="mr-2" size={24} />
@@ -1787,7 +1838,7 @@ const cancelEditSale = () => {
                   // Mostrar mensaje de éxito
                   showSuccess(`✅ Reporte ${periodStr} descargado correctamente como archivo HTML`);
                 }}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors flex items-center"
+                className="bg-[#d4af37] hover:bg-[#b8962e] text-[#111111] px-4 py-2 rounded-2xl font-medium transition-colors flex items-center shadow-md"
               >
                 <Download className="mr-2" size={16} />
                 Descargar Reporte
@@ -1795,7 +1846,7 @@ const cancelEditSale = () => {
               <button
                 type="button"
                 onClick={downloadSummaryAsImage}
-                className="flex items-center justify-center bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-md font-medium transition-colors"
+                className="flex items-center justify-center bg-[#d4af37] hover:bg-[#b8962e] text-[#111111] px-4 py-2 rounded-2xl font-medium transition-colors shadow-md"
               >
                 <span className="mr-2" role="img" aria-hidden="true">📸</span>
                 Descargar como imagen
@@ -1803,12 +1854,12 @@ const cancelEditSale = () => {
             </div>
           </div>
 
-          <div ref={summaryRef} className="bg-white p-6">
+          <div ref={summaryRef} className="bg-[#f9f7f3] text-[#111111] p-6 rounded-2xl shadow-md">
             <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold text-gray-800">
+              <h1 className="text-2xl font-bold text-[#d4af37]">
                 Resumen - {reportPeriod === 'today' ? 'Diario' : reportPeriod === 'week' ? 'Semanal' : 'Mensual'}
               </h1>
-              <p className="text-gray-600">{getPeriodName(reportPeriod)}</p>
+              <p className="text-[#bfbfbf]">{getPeriodName(reportPeriod)}</p>
               <div className="mt-2 flex justify-center items-center gap-4">
                 <span className="text-sm text-green-600">Ingresos: {salesCount}</span>
                 <span className="text-sm text-red-600">Egresos: {expensesCount}</span>
