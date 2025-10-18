@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Generador de Íconos – Ibrahim Joyas</title>
+    <style>
+      body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; background:#0e0e0e; color:#eee; padding:24px; }
+      h1 { font-size: 20px; margin: 0 0 12px; }
+      p { margin: 0 0 16px; color:#cfcfcf; }
+      .row { display:flex; gap:16px; flex-wrap:wrap; margin-top:12px; }
+      button { background:#d4af37; color:#111; border:0; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600; }
+      button:hover { filter:brightness(1.05); }
+      .card { background:#151515; border:1px solid #2a2a2a; border-radius:12px; padding:16px; }
+      .muted { color:#a5a5a5; font-size:13px; }
+      canvas { display:none; }
+      code { background:#1b1b1b; padding:2px 6px; border-radius:6px; }
+    </style>
+  </head>
+  <body>
+    <h1>Generador de Íconos – Ibrahim Joyas</h1>
+    <p>Exporta íconos PNG 192×192 y 512×512 con monograma “IJ” en dorado y estilo minimalista. Opción con fondo negro (#111111) o fondo transparente.</p>
+
+    <div class="row">
+      <div class="card">
+        <h2 style="font-size:16px;margin:0 0 8px;">Fondo negro</h2>
+        <div class="row">
+          <button onclick="downloadIcon(192, true, 'icon-192x192.png')">Descargar 192×192</button>
+          <button onclick="downloadIcon(512, true, 'icon-512x512.png')">Descargar 512×512</button>
+        </div>
+        <p class="muted">Recomendado para Android/Windows. Sugerido por el brief.</p>
+      </div>
+      <div class="card">
+        <h2 style="font-size:16px;margin:0 0 8px;">Fondo transparente</h2>
+        <div class="row">
+          <button onclick="downloadIcon(192, false, 'icon-192x192-transparent.png')">Descargar 192×192</button>
+          <button onclick="downloadIcon(512, false, 'icon-512x512-transparent.png')">Descargar 512×512</button>
+        </div>
+        <p class="muted">Útil para iOS o cuando el SO aplica su propio fondo.</p>
+      </div>
+    </div>
+
+    <p class="muted" style="margin-top:14px;">Coloca los archivos descargados en <code>public/icons/</code> para reemplazar los existentes y coincidir con el manifest.</p>
+
+    <canvas id="iconCanvas" width="512" height="512"></canvas>
+
+    <script>
+      const GOLD_STOPS = [
+        { o: 0.0, c: '#f7e48c' },
+        { o: 0.28, c: '#f2d35b' },
+        { o: 0.5, c: '#d4af37' },
+        { o: 0.72, c: '#b98b1f' },
+        { o: 1.0, c: '#f1da7a' }
+      ];
+
+      function roundedRect(ctx, x, y, w, h, r) {
+        const rr = Math.min(r, w/2, h/2);
+        ctx.beginPath();
+        ctx.moveTo(x+rr, y);
+        ctx.arcTo(x+w, y, x+w, y+h, rr);
+        ctx.arcTo(x+w, y+h, x, y+h, rr);
+        ctx.arcTo(x, y+h, x, y, rr);
+        ctx.arcTo(x, y, x+w, y, rr);
+        ctx.closePath();
+      }
+
+      function drawMonogram(ctx, size) {
+        // Metallic gold gradient
+        const grad = ctx.createLinearGradient(size*0.2, size*0.2, size*0.8, size*0.8);
+        GOLD_STOPS.forEach(s => grad.addColorStop(s.o, s.c));
+
+        ctx.save();
+        ctx.fillStyle = grad;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0,0,0,0.28)';
+        ctx.shadowBlur = size * 0.04;
+        ctx.shadowOffsetY = size * 0.015;
+        ctx.font = `700 ${Math.round(size*0.55)}px \"Times New Roman\", Garamond, Georgia, serif`;
+        ctx.fillText('IJ', size/2, size/2 + size*0.02);
+        ctx.restore();
+
+        // Subtle top highlight arc
+        ctx.save();
+        const hl = ctx.createLinearGradient(0, size*0.08, 0, size*0.32);
+        hl.addColorStop(0, 'rgba(255,255,255,0.35)');
+        hl.addColorStop(1, 'rgba(255,255,255,0.0)');
+        ctx.fillStyle = hl;
+        roundedRect(ctx, size*0.12, size*0.12, size*0.76, size*0.20, size*0.08);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawIconToCanvas(size, withBackground) {
+        const canvas = document.getElementById('iconCanvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        // Clear (transparent)
+        ctx.clearRect(0, 0, size, size);
+
+        if (withBackground) {
+          ctx.save();
+          roundedRect(ctx, 0, 0, size, size, size*0.18);
+          ctx.fillStyle = '#111111';
+          ctx.fill();
+          ctx.restore();
+        }
+
+        drawMonogram(ctx, size);
+        return canvas;
+      }
+
+      function downloadIcon(size, withBackground, filename) {
+        const canvas = drawIconToCanvas(size, withBackground);
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      }
+    </script>
+  </body>
+  </html>
+
