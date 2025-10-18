@@ -31,7 +31,7 @@ const SalesManagementSystem = () => {
   const [clients, setClients] = useLocalStorage<Client[]>('clients', []);
   const [sales, setSales] = useLocalStorage<Sale[]>('sales', []);
   const [editingExpense, setEditingExpense] = useState<ExpenseForm | null>(null);
-  type Tab = 'clients' | 'sales' | 'expenses' | 'report' | 'backup';
+  type Tab = 'clients' | 'sales' | 'expenses' | 'report' | 'history' | 'backup';
   const [activeTab, setActiveTab] = useState('clients');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
@@ -78,11 +78,78 @@ const SalesManagementSystem = () => {
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all');
   const [specificDate, setSpecificDate] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  // Historial de ventas: búsqueda y filtros
+  const [historyQuery, setHistoryQuery] = useState('');
+  const [historyType, setHistoryType] = useState<'all' | 'mayor' | 'detalle'>('all');
+  
+  const salesFilteredForHistory = sales
+    .filter((s) => (historyType === 'all' ? true : s.category === historyType))
+    .filter((s) => {
+      const q = historyQuery.trim().toLowerCase();
+      if (!q) return true;
+      const dateStr = new Date(s.date).toLocaleDateString('es-CL');
+      const clientStr = (s.clientName || '').toLowerCase();
+      return clientStr.includes(q) || dateStr.includes(q);
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const historyTotals = salesFilteredForHistory.reduce(
+    (acc, s) => {
+      acc.total += s.amount;
+      if (s.category === 'mayor') acc.mayor += s.amount;
+      if (s.category === 'detalle') acc.detalle += s.amount;
+      return acc;
+    },
+    { total: 0, mayor: 0, detalle: 0 }
+  );
+
+  const downloadSalesHistoryCSV = () => {
+    const headers = [
+      'ID',
+      'Fecha',
+      'Cliente',
+      'Tipo',
+      'Monto',
+      'Método de pago',
+      'Descripción',
+    ];
+
+    const rows = salesFilteredForHistory.map((s) => {
+      const fecha = formatCLDateTime(new Date(s.date));
+      const tipo = s.category === 'mayor' ? 'Mayorista' : s.category === 'detalle' ? 'Detalle' : s.category;
+      const metodo =
+        s.paymentMethod === 'efectivo'
+          ? 'Efectivo'
+          : s.paymentMethod === 'tarjeta'
+          ? 'Tarjeta'
+          : s.paymentMethod === 'transferencia'
+          ? 'Transferencia'
+          : 'Crédito';
+      const descripcion = (s.description || '').replace(/\r?\n/g, ' ').replace(/"/g, '""');
+      return [s.id, fecha, s.clientName, tipo, s.amount, metodo, descripcion];
+    });
+
+    const csv = [headers, ...rows]
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const today = new Date().toISOString().slice(0, 10);
+    a.download = `historial-ventas-IbrahimJoyas-${today}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
   
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const summaryRef = useRef<HTMLDivElement | null>(null);
+  const historyRef = useRef<HTMLDivElement | null>(null);
 
   // Función para mostrar mensaje de éxito
   const showSuccess = (message: string) => {
@@ -423,6 +490,31 @@ const SalesManagementSystem = () => {
   const cancelEditClient = () => {
     setEditingClient(null);
     setClientForm({ name: '', phone: '', email: '', type: 'detalle' });
+  };
+
+  // Exportar historial de ventas como imagen (png)
+  const exportSalesAsImage = async () => {
+    const element = historyRef.current;
+    if (!element) return;
+
+    try {
+      const canvas = await html2canvas(
+        element as HTMLElement,
+        {
+          background: '#f9f7f3',
+          scale: 2,
+        } as any
+      );
+      const link = document.createElement('a');
+      const dateStr = new Date().toLocaleDateString('es-CL').replace(/\//g, '-');
+      link.download = `historial-ventas-IbrahimJoyas-${dateStr}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showSuccess('📷 Historial exportado como imagen');
+    } catch (err) {
+      console.error('Error al exportar historial como imagen:', err);
+      alert('No fue posible exportar el historial como imagen.');
+    }
   };
 
   // Eliminar cliente
@@ -928,7 +1020,7 @@ const cancelEditSale = () => {
       {/* Navegación */}
       <div className="flex justify-center mb-6">
         <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl p-1 shadow-md">
-          {['clients', 'sales', 'expenses', 'report', 'backup'].map((tab) => (
+          {['clients', 'sales', 'expenses', 'report', 'history', 'backup'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -942,11 +1034,127 @@ const cancelEditSale = () => {
               {tab === 'sales' && 'Ventas'}
               {tab === 'expenses' && 'Egresos'}
               {tab === 'report' && 'Resumen'}
+              {tab === 'history' && '📚 Historial'}
               {tab === 'backup' && 'Respaldos'}
             </button>
           ))}
         </div>
       </div>
+
+      {/* 📚 Historial de Ventas */}
+      {activeTab === 'history' && (
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+            <h2 className="text-2xl font-semibold text-[#d4af37]">📚 Historial de Ventas</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setHistoryType('all')}
+                className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
+                  historyType === 'all'
+                    ? 'bg-[#d4af37] text-[#111111] border-[#d4af37]'
+                    : 'bg-white/10 text-white border-[#d4af37]/30 hover:bg-white/20'
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                onClick={() => setHistoryType('mayor')}
+                className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
+                  historyType === 'mayor'
+                    ? 'bg-[#d4af37] text-[#111111] border-[#d4af37]'
+                    : 'bg-white/10 text-white border-[#d4af37]/30 hover:bg-white/20'
+                }`}
+              >
+                Mayorista
+              </button>
+              <button
+                onClick={() => setHistoryType('detalle')}
+                className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
+                  historyType === 'detalle'
+                    ? 'bg-[#d4af37] text-[#111111] border-[#d4af37]'
+                    : 'bg-white/10 text-white border-[#d4af37]/30 hover:bg-white/20'
+                }`}
+              >
+                Detalle
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+            <input
+              type="text"
+              value={historyQuery}
+              onChange={(e) => setHistoryQuery(e.target.value)}
+              placeholder="Buscar por cliente o fecha (dd/mm/aaaa)"
+              className="w-full md:max-w-md px-3 py-2 rounded-md bg-white/10 text-white placeholder-white/60 border border-[#d4af37]/30 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/60"
+            />
+
+            <div className="flex gap-2">
+              <button
+                onClick={downloadSalesHistoryCSV}
+                className="px-4 py-2 rounded-2xl bg-[#d4af37] text-[#111111] font-medium hover:bg-[#b8962e] shadow"
+              >
+                Descargar CSV
+              </button>
+              <button
+                onClick={exportSalesAsImage}
+                className="bg-[#d4af37] hover:bg-[#b8962e] text-black px-4 py-2 rounded-lg font-medium flex items-center gap-2"
+                title="Exportar historial como imagen"
+              >
+                📷 Exportar como imagen
+              </button>
+            </div>
+          </div>
+
+          <div ref={historyRef} className="overflow-x-auto border border-[#d4af37]/20 rounded-2xl bg-[#f9f7f3] text-[#111111]">
+            <table className="min-w-full text-sm">
+              <thead className="bg-[#d4af37] text-[#111111]">
+                <tr>
+                  <th className="px-3 py-2 text-left">Fecha</th>
+                  <th className="px-3 py-2 text-left">Cliente</th>
+                  <th className="px-3 py-2 text-left">Tipo</th>
+                  <th className="px-3 py-2 text-left">Monto</th>
+                  <th className="px-3 py-2 text-left">Método de pago</th>
+                  <th className="px-3 py-2 text-left">Descripción</th>
+                  <th className="px-3 py-2 text-left">ID</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#d4af37]/15">
+                {salesFilteredForHistory.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-6 text-center text-[#333]/70">Sin resultados</td>
+                  </tr>
+                ) : (
+                  salesFilteredForHistory.map((s) => (
+                    <tr key={s.id} className="hover:bg-black/5">
+                      <td className="px-3 py-2 whitespace-nowrap">{formatCLDateTime(new Date(s.date))}</td>
+                      <td className="px-3 py-2">{s.clientName}</td>
+                      <td className="px-3 py-2">
+                        {s.category === 'mayor' ? 'Mayorista' : s.category === 'detalle' ? 'Detalle' : s.category}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">{formatCLP(s.amount)}</td>
+                      <td className="px-3 py-2 capitalize">{s.paymentMethod}</td>
+                      <td className="px-3 py-2 max-w-[360px] truncate" title={s.description || ''}>{s.description}</td>
+                      <td className="px-3 py-2">{s.id}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+              <tfoot>
+                <tr className="bg-black/5 text-[#111]">
+                  <td className="px-3 py-2 font-semibold" colSpan={2}>Totales</td>
+                  <td className="px-3 py-2">
+                    <div className="text-xs text-[#111]/80">Mayorista: {formatCLP(historyTotals.mayor)}</div>
+                    <div className="text-xs text-[#111]/80">Detalle: {formatCLP(historyTotals.detalle)}</div>
+                  </td>
+                  <td className="px-3 py-2 font-semibold">{formatCLP(historyTotals.total)}</td>
+                  <td className="px-3 py-2" colSpan={3}></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Sección de Respaldos */}
       {activeTab === 'backup' && (
