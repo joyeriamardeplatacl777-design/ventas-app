@@ -1,6 +1,6 @@
-import React from 'react';
+﻿import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './index.css';   // 👈 Importa aquí los estilos de Tailwind
+import './index.css';   // ðŸ‘ˆ Importa aquÃ­ los estilos de Tailwind
 import App from './App';
 
 const root = ReactDOM.createRoot(
@@ -22,3 +22,4 @@ if ('serviceWorker' in navigator) {
       .catch((err) => console.error('Error al registrar Service Worker:', err));
   });
 }
+

@@ -1,9 +1,8 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { User, Phone, Mail, DollarSign, Calendar, Download, Plus, Trash2, Edit2, Save, Shield, Database, AlertCircle } from 'lucide-react';
 import { Client,ClientForm, Sale, ExpenseForm, ClientType, LoginForm, Expense, SaleForm } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import html2canvas from 'html2canvas';
-
 // Formato fecha chileno dd/mm/yyyy hh:mm
 const formatCLDateTime = (date: Date) => {
   const pad = (n: number) => n.toString().padStart(2, '0');
@@ -16,7 +15,7 @@ const formatCLDateTime = (date: Date) => {
 };
 
 
-// Función para formatear pesos chilenos
+// Funci�n para formatear pesos chilenos
 const formatCLP = (amount: number) => {
   return new Intl.NumberFormat('es-CL', {
     style: 'currency',
@@ -47,7 +46,7 @@ const SalesManagementSystem = () => {
     email: '',
     type: 'detalle',
   });
-  // Aquí asegúrate de usar SaleForm, no Sale
+  // Aqu� aseg�rate de usar SaleForm, no Sale
   const [saleForm, setSaleForm] = useState<SaleForm>({
     clientId: '',
     category: 'detalle',
@@ -78,20 +77,54 @@ const SalesManagementSystem = () => {
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all');
   const [specificDate, setSpecificDate] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  // Historial de ventas: búsqueda y filtros
+  // Historial de ventas: b�squeda y filtros
   const [historyQuery, setHistoryQuery] = useState('');
-  const [historyType, setHistoryType] = useState<'all' | 'mayor' | 'detalle'>('all');
+  const [filter, setFilter] = useState<'all' | 'mayor' | 'detalle'>('all');
+      
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    sales.forEach((s) => {
+      const d = new Date(s.date);
+      if (!Number.isNaN(d.getTime())) years.add(d.getFullYear());
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [sales]);
+
+  const formatCLDate = (date: Date) => {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+  };
   
-  const salesFilteredForHistory = sales
-    .filter((s) => (historyType === 'all' ? true : s.category === historyType))
-    .filter((s) => {
-      const q = historyQuery.trim().toLowerCase();
-      if (!q) return true;
-      const dateStr = new Date(s.date).toLocaleDateString('es-CL');
-      const clientStr = (s.clientName || '').toLowerCase();
-      return clientStr.includes(q) || dateStr.includes(q);
-    })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const salesFilteredForHistory = useMemo(() => {
+    const q = historyQuery.toLowerCase().trim();
+
+    const filtered = sales
+      .filter((s) => (filter === 'all' ? true : s.category === filter))
+      .filter((s) => {
+        if (!q) return true; // sin búsqueda, incluir
+
+        const d = new Date(s.date);
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const day = pad(d.getDate());
+        const month = pad(d.getMonth() + 1);
+        const year = String(d.getFullYear());
+        const formattedDate = `${day}/${month}/${year}`; // dd/mm/aaaa
+
+        const name = (s.clientName || '').toLowerCase();
+
+        // Coincidencias posibles
+        const byName = name.includes(q);
+        const byDay = q.length === 2 && q === day; // "07"
+        const byMonth = q.length === 2 && q === month; // "10"
+        const byYear = q.length === 4 && q === year; // "2025"
+        const byFormatted = formattedDate.includes(q); // parcial o completo "07/10/2025", "10/2025", "07/10"
+
+        return byName || byDay || byMonth || byYear || byFormatted;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return filtered;
+  }, [sales, filter, historyQuery]);
 
   const historyTotals = salesFilteredForHistory.reduce(
     (acc, s) => {
@@ -151,7 +184,7 @@ const SalesManagementSystem = () => {
   const summaryRef = useRef<HTMLDivElement | null>(null);
   const historyRef = useRef<HTMLDivElement | null>(null);
 
-  // Función para mostrar mensaje de éxito
+  // Funci�n para mostrar mensaje de �xito
   const showSuccess = (message: string) => {
     setShowSuccessMessage(message);
     setTimeout(() => {
@@ -188,7 +221,7 @@ const SalesManagementSystem = () => {
     return () => window.clearInterval(id);
   }, []);
 
-  // Cargar fecha del último respaldo
+  // Cargar fecha del Último respaldo
   const downloadSummaryAsImage = async () => {
     if (!summaryRef.current) {
       alert('No se encontró el resumen para capturar.');
@@ -333,7 +366,7 @@ const SalesManagementSystem = () => {
     }, 100);
   };
 
-  // Cancelar edición de egreso
+  // Cancelar edici�n de egreso
   const cancelEditExpense = () => {
     setEditingExpense(null);
     setExpenseForm({
@@ -368,10 +401,10 @@ const SalesManagementSystem = () => {
     }
   };
 
-  // Validar solo números para teléfono
+  // Validar solo n�meros para teléfono
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const value: string = e.target.value;
-    const numbersOnly: string = value.replace(/\D/g, ''); // elimina todo lo que no sea número
+    const numbersOnly: string = value.replace(/\D/g, ''); // elimina todo lo que no sea n�mero
 
     setClientForm({
       ...clientForm,
@@ -384,8 +417,8 @@ const SalesManagementSystem = () => {
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const value: string = e.target.value;
 
-  // Solo letras (mayúsculas, minúsculas, tildes, ñ, Ñ y espacios)
-  const filteredValue: string = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+  // Solo letras (may�sculas, min�sculas, tildes, �, � y espacios)
+  const filteredValue: string = value.replace(/[^a-zA-Z������������\s]/g, '');
 
   setClientForm({
     ...clientForm,
@@ -446,7 +479,7 @@ const SalesManagementSystem = () => {
       );
 
       setEditingClient(null);
-      showSuccess(`¡Éxito. Cliente "${trimmedName}" se modificó correctamente`);
+      showSuccess(`Éxito. Cliente "${trimmedName}" se modificó correctamente`);
     } else {
       const newClient: Client = {
         id: crypto.randomUUID(),
@@ -456,7 +489,7 @@ const SalesManagementSystem = () => {
       };
 
       updatedClients = [...clients, newClient];
-      showSuccess(`¡Éxito. Cliente "${trimmedName}" registrado exitosamente`);
+      showSuccess(`Éxito. Cliente "${trimmedName}" registrado exitosamente`);
     }
 
     setClients(updatedClients);
@@ -486,7 +519,7 @@ const SalesManagementSystem = () => {
 };
 
 
-  // Cancelar edición de cliente
+  // Cancelar edici�n de cliente
   const cancelEditClient = () => {
     setEditingClient(null);
     setClientForm({ name: '', phone: '', email: '', type: 'detalle' });
@@ -510,7 +543,7 @@ const SalesManagementSystem = () => {
       link.download = `historial-ventas-IbrahimJoyas-${dateStr}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
-      showSuccess('📷 Historial exportado como imagen');
+      showSuccess('✅ Historial exportado como imagen');
     } catch (err) {
       console.error('Error al exportar historial como imagen:', err);
       alert('No fue posible exportar el historial como imagen.');
@@ -548,7 +581,7 @@ const addSale = () => {
     return;
   }
 
-  // Convertir monto string a número
+  // Convertir monto string a n�mero
   const numericAmount = parseFloat(saleForm.amount.replace(/[^\d]/g, ""));
   if (isNaN(numericAmount) || numericAmount <= 0) {
     alert('¡Por favor ingresa un monto válido!');
@@ -633,7 +666,7 @@ const editSale = (sale: Sale) => {
 };
 
 
-// Cancelar edición de venta
+// Cancelar edici�n de venta
 const cancelEditSale = () => {
   setEditingSale(null);
   setSaleForm({
@@ -675,7 +708,7 @@ const cancelEditSale = () => {
       alert('Error al eliminar la venta.');
     }
   };
-  // Filtrar clientes por búsqueda
+  // Filtrar clientes por b�squeda
   const getFilteredClients = () => {
     if (!clientSearchTerm.trim()) return clients;
     
@@ -687,14 +720,14 @@ const cancelEditSale = () => {
     );
   };
 
-  // Seleccionar cliente desde búsqueda
+  // Seleccionar cliente desde b�squeda
   const selectClientFromSearch = (client: Client): void => {
     setSaleForm({...saleForm, clientId: client.id.toString()});
     setClientSearchTerm(client.name);
     setShowClientDropdown(false);
   };
 
-  // Limpiar búsqueda de cliente
+  // Limpiar b�squeda de cliente
   const clearClientSearch = () => {
     setClientSearchTerm('');
     setSaleForm({...saleForm, clientId: ''});
@@ -966,7 +999,7 @@ const cancelEditSale = () => {
           </div>
         </div>
 
-        {/* Mensaje de éxito */}
+        {/* Mensaje de �xito */}
         {showSuccessMessage && (
           <div className="bg-[#6abf69]/10 border border-[#6abf69]/40 text-[#6abf69] px-4 py-3 rounded-2xl mb-4 text-center animate-pulse">
             <div className="flex items-center justify-center">
@@ -986,7 +1019,7 @@ const cancelEditSale = () => {
         {needsDailyBackup && (
           <div className="bg-[#f9f7f3] text-[#111111] border border-[#d4af37]/50 px-4 py-3 rounded-2xl mb-4 flex items-center justify-between shadow-md">
             <div className="flex items-center flex-wrap gap-2">
-              <span>🔔 Han pasado más de 24 horas desde el último respaldo. Se recomienda crear uno ahora.</span>
+              <span>⚠️ Han pasado más de 24 horas desde el Último respaldo. Se recomienda crear uno ahora.</span>
               {lastBackup && (
                 <span className="text-xs text-yellow-700">Último: {formatCLDateTime(lastBackup)}</span>
               )}
@@ -1017,7 +1050,7 @@ const cancelEditSale = () => {
         )}
       </div>
 
-      {/* Navegación */}
+      {/* Navegaci�n */}
       <div className="flex justify-center mb-6">
         <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl p-1 shadow-md">
           {['clients', 'sales', 'expenses', 'report', 'history', 'backup'].map((tab) => (
@@ -1034,23 +1067,23 @@ const cancelEditSale = () => {
               {tab === 'sales' && 'Ventas'}
               {tab === 'expenses' && 'Egresos'}
               {tab === 'report' && 'Resumen'}
-              {tab === 'history' && '📚 Historial'}
+              {tab === 'history' && 'Historial'}
               {tab === 'backup' && 'Respaldos'}
             </button>
           ))}
         </div>
       </div>
 
-      {/* 📚 Historial de Ventas */}
+      {/* Historial de Ventas */}
       {activeTab === 'history' && (
         <div className="space-y-4">
           <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-            <h2 className="text-2xl font-semibold text-[#d4af37]">📚 Historial de Ventas</h2>
+            <h2 className="text-2xl font-semibold text-[#d4af37]">Historial de Ventas</h2>
             <div className="flex gap-2">
               <button
-                onClick={() => setHistoryType('all')}
+                onClick={() => setFilter('all')}
                 className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
-                  historyType === 'all'
+                  filter === 'all'
                     ? 'bg-[#d4af37] text-[#111111] border-[#d4af37]'
                     : 'bg-white/10 text-white border-[#d4af37]/30 hover:bg-white/20'
                 }`}
@@ -1058,9 +1091,9 @@ const cancelEditSale = () => {
                 Todos
               </button>
               <button
-                onClick={() => setHistoryType('mayor')}
+                onClick={() => setFilter('mayor')}
                 className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
-                  historyType === 'mayor'
+                  filter === 'mayor'
                     ? 'bg-[#d4af37] text-[#111111] border-[#d4af37]'
                     : 'bg-white/10 text-white border-[#d4af37]/30 hover:bg-white/20'
                 }`}
@@ -1068,43 +1101,36 @@ const cancelEditSale = () => {
                 Mayorista
               </button>
               <button
-                onClick={() => setHistoryType('detalle')}
+                onClick={() => setFilter('detalle')}
                 className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
-                  historyType === 'detalle'
+                  filter === 'detalle'
                     ? 'bg-[#d4af37] text-[#111111] border-[#d4af37]'
                     : 'bg-white/10 text-white border-[#d4af37]/30 hover:bg-white/20'
                 }`}
               >
                 Detalle
               </button>
-            </div>
+              <button
+                type="button"
+                onClick={() => { setHistoryQuery(""); setFilter("all"); }}
+                className="px-3 py-2 rounded-md bg-[#111111] text-white border border-[#d4af37] hover:bg-black/80 transition-all duration-300"
+                title="Limpiar filtros"
+              >
+                Limpiar filtros
+              </button>
           </div>
-
-          <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+        </div>
+        <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+          <div className="flex-1 flex flex-col md:flex-row gap-2">
             <input
               type="text"
               value={historyQuery}
               onChange={(e) => setHistoryQuery(e.target.value)}
               placeholder="Buscar por cliente o fecha (dd/mm/aaaa)"
-              className="w-full md:max-w-md px-3 py-2 rounded-md bg-white/10 text-white placeholder-white/60 border border-[#d4af37]/30 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/60"
+              className="w-full md:max-w-md px-3 py-2 rounded-md bg-[#111111] text-white placeholder-white/60 border border-[#d4af37] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/60 transition-all duration-300"
             />
-
-            <div className="flex gap-2">
-              <button
-                onClick={downloadSalesHistoryCSV}
-                className="px-4 py-2 rounded-2xl bg-[#d4af37] text-[#111111] font-medium hover:bg-[#b8962e] shadow"
-              >
-                Descargar CSV
-              </button>
-              <button
-                onClick={exportSalesAsImage}
-                className="bg-[#d4af37] hover:bg-[#b8962e] text-black px-4 py-2 rounded-lg font-medium flex items-center gap-2"
-                title="Exportar historial como imagen"
-              >
-                📷 Exportar como imagen
-              </button>
-            </div>
           </div>
+        </div>
 
           <div ref={historyRef} className="overflow-x-auto border border-[#d4af37]/20 rounded-2xl bg-[#f9f7f3] text-[#111111]">
             <table className="min-w-full text-sm">
@@ -1156,7 +1182,7 @@ const cancelEditSale = () => {
         </div>
       )}
 
-      {/* Sección de Respaldos */}
+      {/* Secci�n de Respaldos */}
       {activeTab === 'backup' && (
         <div className="space-y-6">
           {!isAuthenticated ? (
@@ -1278,7 +1304,7 @@ const cancelEditSale = () => {
                   </button>
                   
                   <div className="mt-4 p-3 bg-[#b94a48]/10 border border-[#b94a48]/40 rounded-2xl">
-                    <h4 className="font-semibold text-red-800 mb-2">⚠️ Zona de Peligro</h4>
+                    <h4 className="font-semibold text-red-800 mb-2">Zona de Peligro</h4>
                     <button
                       onClick={clearAllData}
                       className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded text-sm"
@@ -1293,7 +1319,7 @@ const cancelEditSale = () => {
         </div>
       )}
 
-      {/* Sección de Egresos */}
+      {/* Secci�n de Egresos */}
       {activeTab === 'expenses' && (
         <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-6">
@@ -1508,7 +1534,7 @@ const cancelEditSale = () => {
   </div>
 )}
 
-      {/* Sección de Clientes */}
+      {/* Secci�n de Clientes */}
       {activeTab === 'clients' && (
         <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-6">
@@ -1649,7 +1675,7 @@ const cancelEditSale = () => {
         </div>
       )}
 
-      {/* Sección de Ventas */}
+      {/* Secci�n de Ventas */}
       {activeTab === 'sales' && (
         <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-6">
@@ -1759,7 +1785,7 @@ const cancelEditSale = () => {
                   onChange={(e) =>
                     setSaleForm({
                     ...saleForm,
-                    category: e.target.value as Sale['category'], // Aquí el cast
+                    category: e.target.value as Sale['category'], // Aqu� el cast
                   })
                 }
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
@@ -2043,7 +2069,7 @@ const cancelEditSale = () => {
                   document.body.removeChild(link);
                   URL.revokeObjectURL(url);
                   
-                  // Mostrar mensaje de éxito
+                  // Mostrar mensaje de �xito
                   showSuccess(`✅ Reporte ${periodStr} descargado correctamente como archivo HTML`);
                 }}
                 className="bg-[#d4af37] hover:bg-[#b8962e] text-[#111111] px-4 py-2 rounded-2xl font-medium transition-colors flex items-center shadow-md"
@@ -2056,7 +2082,7 @@ const cancelEditSale = () => {
                 onClick={downloadSummaryAsImage}
                 className="flex items-center justify-center bg-[#d4af37] hover:bg-[#b8962e] text-[#111111] px-4 py-2 rounded-2xl font-medium transition-colors shadow-md"
               >
-                <span className="mr-2" role="img" aria-hidden="true">📸</span>
+                <span className="mr-2" role="img" aria-hidden="true">🖼️</span>
                 Descargar como imagen
               </button>
             </div>
@@ -2217,6 +2243,25 @@ const cancelEditSale = () => {
 };
 
 export default SalesManagementSystem;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

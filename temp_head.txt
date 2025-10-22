@@ -1,0 +1,5 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { User, Phone, Mail, DollarSign, Calendar, Download, Plus, Trash2, Edit2, Save, Shield, Database, AlertCircle } from 'lucide-react';
+import { Client,ClientForm, Sale, ExpenseForm, ClientType, LoginForm, Expense, SaleForm } from './types';
+import { useLocalStorage } from './hooks/useLocalStorage';
+import html2canvas from 'html2canvas';
