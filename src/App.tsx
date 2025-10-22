@@ -40,6 +40,7 @@ const SalesManagementSystem = () => {
   const [showSuccessMessage, setShowSuccessMessage] = useState('');
   const [clientSearchTerm, setClientSearchTerm] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const [clientSearchList, setClientSearchList] = useState('');
   const [clientForm, setClientForm] = useState<ClientForm>({
     name: '',
     phone: '',
@@ -135,6 +136,15 @@ const SalesManagementSystem = () => {
     },
     { total: 0, mayor: 0, detalle: 0 }
   );
+
+  const filteredClientList = clients.filter(client => {
+    const search = clientSearchList.toLowerCase();
+    return (
+      client.name.toLowerCase().includes(search) ||
+      client.phone.includes(search) ||
+      client.email.toLowerCase().includes(search)
+    );
+  });
 
   const downloadSalesHistoryCSV = () => {
     const headers = [
@@ -1613,57 +1623,73 @@ const cancelEditSale = () => {
             </div>
           </div>
 
-          <div className="bg-[#f9f7f3] text-[#111111] rounded-2xl shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">Lista de Clientes</h2>
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+              <h2 className="text-xl font-semibold text-gray-800">Lista de Clientes</h2>
+
+              {/* 🔍 Buscador de clientes */}
+              <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-300 rounded-md px-3 py-2 w-full md:w-72">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="w-5 h-5 text-yellow-600"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"
+                  />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Buscar cliente..."
+                  value={clientSearchList}
+                  onChange={(e) => setClientSearchList(e.target.value)}
+                  className="bg-transparent flex-1 outline-none text-gray-800 placeholder-gray-500"
+                />
+              </div>
+            </div>
+
+            {/* 📋 Lista de clientes filtrada */}
             <div className="max-h-96 overflow-y-auto">
-              {clients.length === 0 ? (
+              {filteredClientList.length === 0 ? (
                 <p className="text-gray-500 text-center py-4">No hay clientes registrados</p>
               ) : (
                 <div className="space-y-3">
-                  {clients.map(client => (
-                    <div key={client.id} className="border border-gray-200 rounded-lg p-3">
+                  {filteredClientList.map(client => (
+                    <div
+                      key={client.id}
+                      className="border border-gray-200 rounded-lg p-3 hover:bg-yellow-50 transition"
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <h3 className="font-medium">{client.name}</h3>
+                          <h3 className="font-medium text-gray-800">{client.name}</h3>
                           <div className="text-sm text-gray-600 space-y-1">
-                            {client.phone && (
-                              <div className="flex items-center">
-                                <Phone size={12} className="mr-1" />
-                                +56 {client.phone}
-                              </div>
-                            )}
-                            {client.email && (
-                              <div className="flex items-center">
-                                <Mail size={12} className="mr-1" />
-                                {client.email}
-                              </div>
-                            )}
+                            {client.phone && <div>📞 +56 {client.phone}</div>}
+                            {client.email && <div>📧 {client.email}</div>}
                           </div>
                         </div>
+
                         <div className="flex items-center gap-2 ml-4">
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            client.type === 'mayorista'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}>
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-medium ${
+                              client.type === 'mayorista'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}
+                          >
                             {client.type}
                           </span>
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => editClient(client)}
-                              className="text-blue-500 hover:text-blue-700 p-1"
-                              title="Editar cliente"
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                            <button
-                              onClick={() => deleteClient(client.id)}
-                              className="text-red-500 hover:text-red-700 p-1"
-                              title="Eliminar cliente"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => editClient(client)}
+                            className="text-blue-500 hover:text-blue-700 p-1 rounded hover:bg-blue-50"
+                            title="Editar cliente"
+                          >
+                            ✏️
+                          </button>
                         </div>
                       </div>
                     </div>
