@@ -560,6 +560,47 @@ const SalesManagementSystem = () => {
     }
   };
 
+  // Descargar historial como imagen (usa html2canvas sobre la tabla)
+  const downloadHistoryAsImage = async () => {
+    const element = document.getElementById('history-table');
+    if (!element) return;
+
+    try {
+      const canvas = await html2canvas(element as HTMLElement, { scale: 2, backgroundColor: '#fff' } as any);
+      const dataUrl = canvas.toDataURL('image/png');
+
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `historial-ventas-${new Date().toLocaleDateString('es-CL').replace(/\//g, '-')}.png`;
+      link.click();
+    } catch (error) {
+      console.error('Error al generar la imagen del historial:', error);
+      alert('No fue posible generar la imagen del historial.');
+    }
+  };
+
+  // Descargar historial como archivo de texto
+  const downloadHistoryAsText = () => {
+    let text = '📜 HISTORIAL DE VENTAS\n\n';
+    text += 'Fecha\tCliente\tTipo\tMonto\tMétodo\tDescripción\n';
+    text += '------------------------------------------------------------\n';
+
+    const list = salesFilteredForHistory && salesFilteredForHistory.length ? salesFilteredForHistory : sales;
+
+    list.forEach((sale) => {
+      const clientName = (sale as any).clientName || (clients.find(c => c.id === (sale as any).clientId)?.name ?? 'Sin cliente');
+      const date = new Date((sale as any).date).toLocaleString('es-CL');
+      const line = `${date}\t${clientName}\t${(sale as any).category}\t${formatCLP((sale as any).amount)}\t${(sale as any).paymentMethod}\t${(sale as any).description || ''}\n`;
+      text += line;
+    });
+
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `historial-ventas-${new Date().toLocaleDateString('es-CL').replace(/\//g, '-')}.txt`;
+    link.click();
+  };
+
   // Eliminar cliente
   const deleteClient = (clientId: string) => {
     const confirmed = window.confirm('¿Seguro que deseas eliminar este cliente?');
@@ -1142,8 +1183,24 @@ const cancelEditSale = () => {
           </div>
         </div>
 
+          <div className="flex flex-wrap gap-3 mb-4">
+            <button
+              onClick={downloadHistoryAsImage}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md shadow-md transition-colors flex items-center gap-2"
+            >
+              📷 Descargar Imagen
+            </button>
+
+            <button
+              onClick={downloadHistoryAsText}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md shadow-md transition-colors flex items-center gap-2"
+            >
+              📝 Descargar TXT
+            </button>
+          </div>
+
           <div ref={historyRef} className="overflow-x-auto border border-[#d4af37]/20 rounded-2xl bg-[#f9f7f3] text-[#111111]">
-            <table className="min-w-full text-sm">
+            <table id="history-table" className="min-w-full text-sm">
               <thead className="bg-[#d4af37] text-[#111111]">
                 <tr>
                   <th className="px-3 py-2 text-left">Fecha</th>
