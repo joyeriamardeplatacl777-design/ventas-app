@@ -53,7 +53,8 @@ const SalesManagementSystem = () => {
     category: 'detalle',
     amount: '', // string porque es input
     paymentMethod: 'efectivo',
-    description: ''
+    description: '',
+    date: ''
   });
 
   const [expenses, setExpenses] = useLocalStorage<Expense[]>('expenses', []);
@@ -653,6 +654,7 @@ const addSale = () => {
             amount: numericAmount,
             paymentMethod: saleForm.paymentMethod,
             description: saleForm.description,
+            date: saleForm.date ? new Date(saleForm.date).toISOString() : sale.date,
             updatedAt: new Date().toISOString(),
           }
         : sale
@@ -670,7 +672,9 @@ const addSale = () => {
       amount: numericAmount,
       paymentMethod: saleForm.paymentMethod,
       description: saleForm.description,
-      date: new Date().toISOString(),
+      date: saleForm.date
+        ? new Date(saleForm.date).toISOString()
+        : new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
@@ -688,6 +692,7 @@ const addSale = () => {
     amount: "",
     paymentMethod: "efectivo",
     description: "",
+    date: "",
   });
   setClientSearchTerm("");
 };
@@ -702,7 +707,8 @@ const editSale = (sale: Sale) => {
     category: sale.category,
     amount: sale.amount.toString(), // Convertir number a string
     paymentMethod: sale.paymentMethod,
-    description: sale.description || ''
+    description: sale.description || '',
+    date: sale.date.split('T')[0]
   };
 
   setSaleForm(formValues); // Ya es SaleForm válido
@@ -725,7 +731,8 @@ const cancelEditSale = () => {
     category: 'detalle',
     amount: '',
     paymentMethod: 'efectivo',
-    description: ''
+    description: '',
+    date: ''
   });
   setClientSearchTerm('');
   setShowClientDropdown(false);
@@ -1928,6 +1935,22 @@ const cancelEditSale = () => {
                   <option value="credito">Crédito</option>
                 </select>
 
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fecha de la venta *
+                </label>
+                <input
+                  type="date"
+                  value={saleForm.date || new Date().toISOString().split('T')[0]}
+                  onChange={(e) =>
+                    setSaleForm({
+                      ...saleForm,
+                      date: e.target.value,
+                    })
+                  }
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>

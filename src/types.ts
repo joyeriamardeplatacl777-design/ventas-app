@@ -35,6 +35,7 @@ export interface SaleForm {
   amount: string; // string porque viene del input
   paymentMethod: Sale['paymentMethod'];
   description: string;
+  date?: string;
 }
 
 export type FundingSource =
