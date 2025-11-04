@@ -895,6 +895,94 @@ const cancelEditSale = () => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
+    if (period === 'date') {
+      // Si no hay fecha seleccionada, no mostrar datos
+      if (!specificDate) {
+        return {
+          sales: {
+            mayor: 0,
+            detalle: 0,
+            arreglos: 0,
+            grabados: 0,
+            efectivo: 0,
+            tarjeta: 0,
+            transferencia: 0,
+            credito: 0,
+            total: 0,
+          },
+          expenses: {
+            compras: 0,
+            servicios: 0,
+            suministros: 0,
+            transporte: 0,
+            marketing: 0,
+            equipamiento: 0,
+            mantenimiento: 0,
+            gastos_generales: 0,
+            personal: 0,
+            impuestos: 0,
+            otros: 0,
+            total: 0,
+          },
+          salesCount: 0,
+          expensesCount: 0,
+          netProfit: 0,
+        };
+      }
+
+      const target = new Date(specificDate);
+      const targetStr = target.toDateString();
+
+      const periodSales = sales.filter((sale) => new Date(sale.date).toDateString() === targetStr);
+      const periodExpenses = expenses.filter((expense) => new Date(expense.date).toDateString() === targetStr);
+
+      const salesSummary = {
+        mayor: 0,
+        detalle: 0,
+        arreglos: 0,
+        grabados: 0,
+        efectivo: 0,
+        tarjeta: 0,
+        transferencia: 0,
+        credito: 0,
+        total: 0,
+      } as any;
+
+      const expensesSummary = {
+        compras: 0,
+        servicios: 0,
+        suministros: 0,
+        transporte: 0,
+        marketing: 0,
+        equipamiento: 0,
+        mantenimiento: 0,
+        gastos_generales: 0,
+        personal: 0,
+        impuestos: 0,
+        otros: 0,
+        total: 0,
+      } as any;
+
+      periodSales.forEach((sale) => {
+        salesSummary[sale.category] += sale.amount;
+        salesSummary[sale.paymentMethod] += sale.amount;
+        salesSummary.total += sale.amount;
+      });
+
+      periodExpenses.forEach((expense) => {
+        expensesSummary[expense.category] += expense.amount;
+        expensesSummary.total += expense.amount;
+      });
+
+      return {
+        sales: salesSummary,
+        expenses: expensesSummary,
+        salesCount: periodSales.length,
+        expensesCount: periodExpenses.length,
+        netProfit: salesSummary.total - expensesSummary.total,
+      };
+    }
+    
     let start: Date, end: Date;
     switch (period) {
       case 'today':
@@ -916,6 +1004,11 @@ const cancelEditSale = () => {
       case 'year':
         start = new Date(now.getFullYear(), 0, 1);
         end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+        break;
+      case 'date':
+        // Ya manejado al inicio con igualdad por fecha
+        start = today;
+        end = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1);
         break;
       default:
         start = today;
@@ -980,7 +1073,7 @@ const cancelEditSale = () => {
   };
 
   // Obtener nombre del período
-  type Period = 'today' | 'week' | 'month' | 'year';
+  type Period = 'today' | 'week' | 'month' | 'year' | 'date';
   const getPeriodName = (period: Period): string => {
     const now = new Date();
     switch (period) {
@@ -1004,6 +1097,9 @@ const cancelEditSale = () => {
         })}`;
       case 'year':
         return `Este Año - ${now.getFullYear()}`;
+      case 'date':
+        if (!specificDate) return 'Selecciona una fecha';
+        return `Día específico - ${new Date(specificDate).toLocaleDateString('es-ES')}`;
       default:
         return '';
     }
@@ -2062,8 +2158,20 @@ const cancelEditSale = () => {
                   <option value="week">Esta Semana</option>
                   <option value="month">Este Mes</option>
                   <option value="year">Este año</option>
+                  <option value="date">📅 Día específico</option>
                 </select>
               </div>
+              {reportPeriod === 'date' && (
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">Fecha:</label>
+                  <input
+                    type="date"
+                    value={specificDate}
+                    onChange={(e) => setSpecificDate(e.target.value)}
+                    className="p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                </div>
+              )}
               
               <button
                 type="button"
@@ -2209,7 +2317,16 @@ const cancelEditSale = () => {
               </div>
             </div>
 
-            {salesCount === 0 && expensesCount === 0 ? (
+            {reportPeriod === 'date' && !specificDate ? (
+              <div className="text-center py-12">
+                <div className="text-gray-400 mb-4">
+                  <Calendar size={48} className="mx-auto" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-600 mb-2">
+                  Selecciona una fecha
+                </h3>
+              </div>
+            ) : salesCount === 0 && expensesCount === 0 ? (
               <div className="text-center py-12">
                 <div className="text-gray-400 mb-4">
                   <Calendar size={48} className="mx-auto" />
