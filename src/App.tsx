@@ -2,7 +2,9 @@
 import { User, Phone, Mail, DollarSign, Calendar, Download, Plus, Trash2, Edit2, Save, Shield, Database, AlertCircle } from 'lucide-react';
 import { Client,ClientForm, Sale, ExpenseForm, ClientType, LoginForm, Expense, SaleForm } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import html2canvas from 'html2canvas';
+import { useSafeStorage } from './hooks/useSafeStorage';
+import { captureElementAsImage } from './utils/capture';
+import { colors } from './utils/theme';
 // Formato fecha chileno dd/mm/yyyy hh:mm
 const formatCLDateTime = (date: Date) => {
   const pad = (n: number) => n.toString().padStart(2, '0');
