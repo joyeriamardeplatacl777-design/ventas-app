@@ -5,6 +5,8 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import { useSafeStorage } from './hooks/useSafeStorage';
 import { captureElementAsImage } from './utils/capture';
 import { colors } from './utils/theme';
+import html2canvas from 'html2canvas';
+
 // Formato fecha chileno dd/mm/yyyy hh:mm
 const formatCLDateTime = (date: Date) => {
   const pad = (n: number) => n.toString().padStart(2, '0');
