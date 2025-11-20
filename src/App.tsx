@@ -623,30 +623,33 @@ const SalesManagementSystem = () => {
   // Agregar venta
 // Agregar venta
 const addSale = () => {
-  if (!saleForm.clientId || !saleForm.amount) {
-    alert('¡Debes seleccionar un cliente y un monto válido!');
+  const sanitizedAmount = saleForm.amount.replace(/\D/g, '');
+
+  if (!saleForm.clientId || !sanitizedAmount) {
+    alert('?Debes seleccionar un cliente y un monto v?lido!');
     return;
   }
 
-  // Buscar cliente
-  const client = clients.find(c => c.id === saleForm.clientId);
+  const client = clients.find((c) => c.id === saleForm.clientId);
   if (!client) {
     alert('Cliente no encontrado.');
     return;
   }
 
-  // Convertir monto string a n�mero
-  const numericAmount = parseFloat(saleForm.amount.replace(/[^\d]/g, ""));
-  if (isNaN(numericAmount) || numericAmount <= 0) {
-    alert('¡Por favor ingresa un monto válido!');
+  const numericAmount = Number.parseInt(sanitizedAmount, 10);
+  if (Number.isNaN(numericAmount) || numericAmount <= 0) {
+    alert('?Por favor ingresa un monto v?lido!');
     return;
   }
 
-  let updatedSales: Sale[];
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const finalDate = saleForm.date
+    ? new Date(`${saleForm.date}T00:00:00`).toISOString()
+    : nowIso;
 
   if (editingSale) {
-    // Editar venta existente
-    updatedSales = sales.map((sale) =>
+    const updatedSales = sales.map((sale) =>
       sale.id === editingSale.id
         ? {
             ...sale,
@@ -656,16 +659,16 @@ const addSale = () => {
             amount: numericAmount,
             paymentMethod: saleForm.paymentMethod,
             description: saleForm.description,
-            date: saleForm.date ? new Date(saleForm.date).toISOString() : sale.date,
-            updatedAt: new Date().toISOString(),
+            date: saleForm.date ? finalDate : sale.date,
+            updatedAt: nowIso,
           }
         : sale
     );
 
+    setSales(updatedSales);
     setEditingSale(null);
-    showSuccess(`✅ Venta modificada correctamente - ${formatCLP(numericAmount)}`);
+    showSuccess(`? Venta modificada correctamente - ${formatCLP(numericAmount)}`);
   } else {
-    // Crear nueva venta
     const newSale: Sale = {
       id: Date.now(),
       clientId: saleForm.clientId,
@@ -674,30 +677,26 @@ const addSale = () => {
       amount: numericAmount,
       paymentMethod: saleForm.paymentMethod,
       description: saleForm.description,
-      date: saleForm.date
-        ? new Date(saleForm.date).toISOString()
-        : new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      date: finalDate,
+      updatedAt: nowIso,
     };
 
-    updatedSales = [...sales, newSale];
-    showSuccess(`✅ Venta registrada exitosamente - ${formatCLP(numericAmount)}`);
+    setSales([...sales, newSale]);
+    showSuccess(`? Venta registrada exitosamente - ${formatCLP(numericAmount)}`);
   }
 
-  // Actualizar ventas
-  setSales(updatedSales);
-
-  // Resetear formulario
   setSaleForm({
-    clientId: "",
-    category: "detalle",
-    amount: "",
-    paymentMethod: "efectivo",
-    description: "",
-    date: "",
+    clientId: '',
+    category: 'detalle',
+    amount: '',
+    paymentMethod: 'efectivo',
+    description: '',
+    date: '',
   });
-  setClientSearchTerm("");
+  setClientSearchTerm('');
+  setShowClientDropdown(false);
 };
+
 
 
 // Editar venta
@@ -710,7 +709,7 @@ const editSale = (sale: Sale) => {
     amount: sale.amount.toString(), // Convertir number a string
     paymentMethod: sale.paymentMethod,
     description: sale.description || '',
-    date: sale.date.split('T')[0]
+    date: sale.date ? sale.date.split('T')[0] : ''
   };
 
   setSaleForm(formValues); // Ya es SaleForm válido
@@ -1315,12 +1314,13 @@ const cancelEditSale = () => {
                   <th className="px-3 py-2 text-left">Método de pago</th>
                   <th className="px-3 py-2 text-left">Descripción</th>
                   <th className="px-3 py-2 text-left">ID</th>
+                  <th className="px-3 py-2 text-left">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#d4af37]/15">
                 {salesFilteredForHistory.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-3 py-6 text-center text-[#333]/70">Sin resultados</td>
+                    <td colSpan={8} className="px-3 py-6 text-center text-[#333]/70">Sin resultados</td>
                   </tr>
                 ) : (
                   salesFilteredForHistory.map((s) => (
@@ -1334,6 +1334,24 @@ const cancelEditSale = () => {
                       <td className="px-3 py-2 capitalize">{s.paymentMethod}</td>
                       <td className="px-3 py-2 max-w-[360px] truncate" title={s.description || ''}>{s.description}</td>
                       <td className="px-3 py-2">{s.id}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => editSale(s)}
+                            className="text-[#d4af37] hover:text-[#b8962e] p-1 rounded-full hover:bg-[#d4af37]/10"
+                            title="Editar venta"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button
+                            onClick={() => deleteSale(s.id)}
+                            className="text-[#b94a48] hover:text-[#9f3e3c] p-1 rounded-full hover:bg-[#b94a48]/10"
+                            title="Eliminar venta"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -1346,7 +1364,7 @@ const cancelEditSale = () => {
                     <div className="text-xs text-[#111]/80">Detalle: {formatCLP(historyTotals.detalle)}</div>
                   </td>
                   <td className="px-3 py-2 font-semibold">{formatCLP(historyTotals.total)}</td>
-                  <td className="px-3 py-2" colSpan={3}></td>
+                  <td className="px-3 py-2" colSpan={4}></td>
                 </tr>
               </tfoot>
             </table>
