@@ -85,7 +85,9 @@ const SalesManagementSystem = () => {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   // Historial de ventas: b�squeda y filtros
   const [historyQuery, setHistoryQuery] = useState('');
-  const [filter, setFilter] = useState<'all' | 'mayor' | 'detalle'>('all');
+  // Filtro de historial: todos / mayorista / detalle / arreglos / grabados
+const [filter, setFilter] = useState<'all' | 'mayor' | 'detalle' | 'arreglos' | 'grabados'>('all');
+
       
   const availableYears = useMemo(() => {
     const years = new Set<number>();
@@ -137,9 +139,11 @@ const SalesManagementSystem = () => {
       acc.total += s.amount;
       if (s.category === 'mayor') acc.mayor += s.amount;
       if (s.category === 'detalle') acc.detalle += s.amount;
+      if (s.category === 'arreglos') acc.arreglos += s.amount;
+      if (s.category === 'grabados') acc.grabados += s.amount;
       return acc;
     },
-    { total: 0, mayor: 0, detalle: 0 }
+    { total: 0, mayor: 0, detalle: 0, arreglos: 0, grabados: 0 }
   );
 
   const filteredClientList = clients.filter(client => {
@@ -1004,6 +1008,13 @@ const cancelEditSale = () => {
         end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         end.setHours(23, 59, 59, 999);
         break;
+      case 'lastMonth':
+        // Nuevo período: mes pasado
+        const previousMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        start = new Date(previousMonthDate.getFullYear(), previousMonthDate.getMonth(), 1);
+        end = new Date(previousMonthDate.getFullYear(), previousMonthDate.getMonth() + 1, 0);
+        end.setHours(23, 59, 59, 999);
+        break;
       case 'year':
         start = new Date(now.getFullYear(), 0, 1);
         end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
@@ -1076,7 +1087,7 @@ const cancelEditSale = () => {
   };
 
   // Obtener nombre del período
-  type Period = 'today' | 'week' | 'month' | 'year' | 'date';
+  type Period = 'today' | 'week' | 'month' | 'lastMonth' | 'year' | 'date';
   const getPeriodName = (period: Period): string => {
     const now = new Date();
     switch (period) {
@@ -1098,8 +1109,13 @@ const cancelEditSale = () => {
           month: 'long', 
           year: 'numeric' 
         })}`;
+      case 'lastMonth': {
+        // Nuevo período: mes pasado
+        const previousMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        return `Mes pasado - ${previousMonthDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}`;
+      }
       case 'year':
-        return `Este Año - ${now.getFullYear()}`;
+        return `Este año - ${now.getFullYear()}`;
       case 'date':
         if (!specificDate) return 'Selecciona una fecha';
         return `Día específico - ${new Date(specificDate).toLocaleDateString('es-ES')}`;
@@ -1247,6 +1263,7 @@ const cancelEditSale = () => {
               >
                 Todos
               </button>
+
               <button
                 onClick={() => setFilter('mayor')}
                 className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
@@ -1257,6 +1274,7 @@ const cancelEditSale = () => {
               >
                 Mayorista
               </button>
+
               <button
                 onClick={() => setFilter('detalle')}
                 className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
@@ -1267,15 +1285,40 @@ const cancelEditSale = () => {
               >
                 Detalle
               </button>
+
+              {/* Nuevo filtro: Arreglos */}
+              <button
+                onClick={() => setFilter('arreglos')}
+                className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
+                  filter === 'arreglos'
+                    ? 'bg-[#d4af37] text-[#111111] border-[#d4af37]'
+                    : 'bg-white/10 text-white border-[#d4af37]/30 hover:bg-white/20'
+                }`}
+              >
+                Arreglos
+              </button>
+
+              {/* Nuevo filtro: Grabados */}
+              <button
+                onClick={() => setFilter('grabados')}
+                className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
+                  filter === 'grabados'
+                    ? 'bg-[#d4af37] text-[#111111] border-[#d4af37]'
+                    : 'bg-white/10 text-white border-[#d4af37]/30 hover:bg-white/20'
+                }`}
+              >
+                Grabados
+              </button>
+
+              {/* Botón de limpiar filtros */}
               <button
                 type="button"
-                onClick={() => { setHistoryQuery(""); setFilter("all"); }}
+                onClick={() => { setHistoryQuery(''); setFilter('all'); }}
                 className="px-3 py-2 rounded-md bg-[#111111] text-white border border-[#d4af37] hover:bg-black/80 transition-all duration-300"
-                title="Limpiar filtros"
               >
                 Limpiar filtros
               </button>
-          </div>
+            </div>
         </div>
         <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
           <div className="flex-1 flex flex-col md:flex-row gap-2">
@@ -1364,6 +1407,8 @@ const cancelEditSale = () => {
                   <td className="px-3 py-2">
                     <div className="text-xs text-[#111]/80">Mayorista: {formatCLP(historyTotals.mayor)}</div>
                     <div className="text-xs text-[#111]/80">Detalle: {formatCLP(historyTotals.detalle)}</div>
+                    <div className="text-xs text-[#111]/80">Arreglos: {formatCLP(historyTotals.arreglos)}</div>
+                    <div className="text-xs text-[#111]/80">Grabados: {formatCLP(historyTotals.grabados)}</div>
                   </td>
                   <td className="px-3 py-2 font-semibold">{formatCLP(historyTotals.total)}</td>
                   <td className="px-3 py-2" colSpan={4}></td>
@@ -2176,10 +2221,11 @@ const cancelEditSale = () => {
                   onChange={(e) => setReportPeriod(e.target.value as Period)}
                   className="p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
                 >
-                  <option value="today">Hoy</option>
-                  <option value="week">Esta Semana</option>
-                  <option value="month">Este Mes</option>
-                  <option value="year">Este año</option>
+                  <option value="today">📅 Hoy</option>
+                  <option value="week">📅 Esta Semana</option>
+                  <option value="month">📅 Este Mes</option>
+                  <option value="lastMonth">📅 Mes pasado</option>
+                  <option value="year">📅 Este año</option>
                   <option value="date">📅 Día específico</option>
                 </select>
               </div>
