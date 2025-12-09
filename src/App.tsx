@@ -1252,10 +1252,10 @@ const cancelEditSale = () => {
         <div className="space-y-4">
           <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
             <h2 className="text-2xl font-semibold text-[#d4af37]">Historial de Ventas</h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 justify-center md:justify-start">
               <button
                 onClick={() => setFilter('all')}
-                className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
+                className={`px-2 py-1.5 md:px-3 md:py-2 rounded-2xl text-xs md:text-sm font-medium border ${
                   filter === 'all'
                     ? 'bg-[#d4af37] text-[#111111] border-[#d4af37]'
                     : 'bg-white/10 text-white border-[#d4af37]/30 hover:bg-white/20'
@@ -1266,7 +1266,7 @@ const cancelEditSale = () => {
 
               <button
                 onClick={() => setFilter('mayor')}
-                className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
+                className={`px-2 py-1.5 md:px-3 md:py-2 rounded-2xl text-xs md:text-sm font-medium border ${
                   filter === 'mayor'
                     ? 'bg-[#d4af37] text-[#111111] border-[#d4af37]'
                     : 'bg-white/10 text-white border-[#d4af37]/30 hover:bg-white/20'
@@ -1277,7 +1277,7 @@ const cancelEditSale = () => {
 
               <button
                 onClick={() => setFilter('detalle')}
-                className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
+                className={`px-2 py-1.5 md:px-3 md:py-2 rounded-2xl text-xs md:text-sm font-medium border ${
                   filter === 'detalle'
                     ? 'bg-[#d4af37] text-[#111111] border-[#d4af37]'
                     : 'bg-white/10 text-white border-[#d4af37]/30 hover:bg-white/20'
@@ -1289,7 +1289,7 @@ const cancelEditSale = () => {
               {/* Nuevo filtro: Arreglos */}
               <button
                 onClick={() => setFilter('arreglos')}
-                className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
+                className={`px-2 py-1.5 md:px-3 md:py-2 rounded-2xl text-xs md:text-sm font-medium border ${
                   filter === 'arreglos'
                     ? 'bg-[#d4af37] text-[#111111] border-[#d4af37]'
                     : 'bg-white/10 text-white border-[#d4af37]/30 hover:bg-white/20'
@@ -1301,7 +1301,7 @@ const cancelEditSale = () => {
               {/* Nuevo filtro: Grabados */}
               <button
                 onClick={() => setFilter('grabados')}
-                className={`px-3 py-2 rounded-2xl text-sm font-medium border ${
+                className={`px-2 py-1.5 md:px-3 md:py-2 rounded-2xl text-xs md:text-sm font-medium border ${
                   filter === 'grabados'
                     ? 'bg-[#d4af37] text-[#111111] border-[#d4af37]'
                     : 'bg-white/10 text-white border-[#d4af37]/30 hover:bg-white/20'
